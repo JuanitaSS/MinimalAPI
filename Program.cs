@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MinimalAPI.Modelos;
+using Microsoft.AspNetCore.Mvc;
 
 public static class RutasInventario
 {
@@ -44,7 +47,8 @@ public static class RutasInventario
             catch (Exception ex)
             {
                 app.Logger.LogError($"Error al agregar el producto: {ex.Message}");
-                return Results.StatusCode(500, "Error interno al agregar el producto");
+                return Results.Problem("Error interno al agregar el producto", statusCode: 500);
+
             }
         });
     }
@@ -64,4 +68,3 @@ class Program
         app.Run();
     }
 }
-
