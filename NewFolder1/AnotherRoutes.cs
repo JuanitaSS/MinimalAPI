@@ -2,17 +2,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using MinimalAPI.Models;
 
 namespace MinimalAPI.Routes
 {
-    public static class AnotherRoutes
+    public static class OtrasRutas
     {
-        public static void Another(WebApplication app)
+        public static void Otra(WebApplication app)
         {
-            List<Product> inventory = new List<Product>();
-
             app.MapGet("/Ping", () => "Pong");
 
             app.MapPost("/CustomJSON", (dynamic json) =>
@@ -24,31 +20,24 @@ namespace MinimalAPI.Routes
                 return Results.Ok($"Value1: {value1}");
             });
 
-            app.MapGet("/GetInventory", () => Results.Json(inventory));
+            List<Producto> inventario = new List<Producto>();
 
-            app.MapPost("/AddProduct", async (HttpContext context) =>
+            app.MapGet("/ObtenerInventario", () => Results.Json(inventario));
+
+            app.MapPost("/AgregarProducto", async (HttpContext context) =>
             {
-                var productJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
-                var newProduct = JsonSerializer.Deserialize<Product>(productJson);
+                var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
+                var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
 
-                var validationResults = Validations.ValidarProduct(newProduct);
+                nuevoProducto.Id = Guid.NewGuid();
+                inventario.Add(nuevoProducto);
 
-                if (validationResults.Count > 0)
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsync(JsonSerializer.Serialize(validationResults));
-                    return;
-                }
+                app.Logger.LogInformation($"Producto añadido - ID: {nuevoProducto.Id}, Nombre: {nuevoProducto.Nombre}, Cantidad: {nuevoProducto.Cantidad}");
 
-                newProduct.Id = Guid.NewGuid().ToString();
-                inventory.Add(newProduct);
-
-                app.Logger.LogInformation($"Product added - ID: {newProduct.Id}, Name: {newProduct.Name}, Quantity: {newProduct.Quantity}");
-
-                context.Response.StatusCode = 201;
-                await context.Response.WriteAsync(JsonSerializer.Serialize(newProduct));
+                return Results.Created($"/ObtenerProducto/{nuevoProducto.Id}", nuevoProducto);
             });
         }
     }
 }
+
 
