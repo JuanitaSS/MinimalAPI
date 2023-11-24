@@ -1,8 +1,3 @@
-/*
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args)
-WebApplication app = builder.Build()
-*/
-
 using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Builder;
@@ -10,15 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
-
-public class Producto
-{
-    public Guid Id { get; set; }
-    public string Nombre { get; set; }
-    public int Cantidad { get; set; }
-    // Puedes agregar m·s propiedades seg˙n tus necesidades
-}
+using MinimalAPI.Models;
 
 public static class RutasInventario
 {
@@ -32,15 +19,33 @@ public static class RutasInventario
 
         app.MapPost("/AgregarProducto", async (HttpContext context) =>
         {
-            var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
-            var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
+            try
+            {
+                var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
+                var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
 
-            nuevoProducto.Id = Guid.NewGuid();
-            inventario.Add(nuevoProducto);
+                // Validar el modelo antes de agregarlo al inventario
+                var validationResults = new List<ValidationResult>();
+                if (Validator.TryValidateObject(nuevoProducto, new ValidationContext(nuevoProducto), validationResults, true))
+                {
+                    nuevoProducto.Id = Guid.NewGuid();
+                    inventario.Add(nuevoProducto);
 
-            app.Logger.LogInformation($"Producto aÒadido - ID: {nuevoProducto.Id}, Nombre: {nuevoProducto.Nombre}, Cantidad: {nuevoProducto.Cantidad}");
+                    app.Logger.LogInformation($"Producto a√±adido - ID: {nuevoProducto.Id}, Nombre: {nuevoProducto.Nombre}, Cantidad: {nuevoProducto.Cantidad}");
 
-            return Results.Created($"/ObtenerProducto/{nuevoProducto.Id}", nuevoProducto);
+                    return Results.Created($"/ObtenerProducto/{nuevoProducto.Id}", nuevoProducto);
+                }
+                else
+                {
+                    // Manejar errores de validaci√≥n
+                    return Results.BadRequest(validationResults);
+                }
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError($"Error al agregar el producto: {ex.Message}");
+                return Results.StatusCode(500, "Error interno al agregar el producto");
+            }
         });
     }
 }
@@ -59,3 +64,4 @@ class Program
         app.Run();
     }
 }
+
