@@ -1,14 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using MinimalAPI.Modelos;
 using Microsoft.AspNetCore.Mvc;
+using MinimalAPI.Modelos;
+using MinimalAPI.Validaciones;
 
 public static class RutasInventario
 {
@@ -22,34 +21,28 @@ public static class RutasInventario
 
         app.MapPost("/AgregarProducto", async (HttpContext context) =>
         {
-            try
+            var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
+            var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
+
+            // Validar el modelo antes de agregarlo al inventario
+            var validationResults = Validaciones.ValidarProducto(nuevoProducto);
+
+            if (validationResults.Any())
             {
-                var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
-                var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
-
-
-                
-                var validationResults = new List<ValidationResult>();
-                if (Validator.TryValidateObject(nuevoProducto, new ValidationContext(nuevoProducto), validationResults, true))
-                {
-                    nuevoProducto.Id = Guid.NewGuid();
-                    inventario.Add(nuevoProducto);
-
-                    app.Logger.LogInformation($"Producto añadido - ID: {nuevoProducto.Id}, Nombre: {nuevoProducto.Nombre}, Cantidad: {nuevoProducto.Cantidad}");
-
-                    return Results.Created($"/ObtenerProducto/{nuevoProducto.Id}", nuevoProducto);
-                }
-                else
-                {
-                    
-                    return Results.BadRequest(validationResults);
-                }
+                // Manejar errores de validación
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(validationResults));
+                return;
             }
-            catch (Exception ex)
-            {
-                app.Logger.LogError($"Error al agregar el producto: {ex.Message}");
-                return Results.Problem("Error interno al agregar el producto", statusCode: 500);
-            }
+
+            // Continuar con la lógica de agregar el producto
+            nuevoProducto.Id = Guid.NewGuid().ToString();
+            inventario.Add(nuevoProducto);
+
+            app.Logger.LogInformation($"Producto añadido - ID: {nuevoProducto.Id}, Nombre: {nuevoProducto.Nombre}, Cantidad: {nuevoProducto.Cantidad}");
+
+            context.Response.StatusCode = 201;
+            await context.Response.WriteAsync(JsonSerializer.Serialize(nuevoProducto));
         });
     }
 }
@@ -61,13 +54,10 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-
-
 app.MapGet("/", () => "Bienvenido al inventario");
 
 // Configuración de otras rutas
 RutasInventario.ConfigurarInventario(app);
-
 
 app.UseSwagger();
 app.UseSwaggerUI();
