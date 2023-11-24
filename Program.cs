@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MinimalAPI.Modelos;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +27,8 @@ public static class RutasInventario
                 var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
                 var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
 
-                // Validar el modelo antes de agregarlo al inventario
+
+                
                 var validationResults = new List<ValidationResult>();
                 if (Validator.TryValidateObject(nuevoProducto, new ValidationContext(nuevoProducto), validationResults, true))
                 {
@@ -40,7 +41,7 @@ public static class RutasInventario
                 }
                 else
                 {
-                    // Manejar errores de validación
+                    
                     return Results.BadRequest(validationResults);
                 }
             }
@@ -48,23 +49,27 @@ public static class RutasInventario
             {
                 app.Logger.LogError($"Error al agregar el producto: {ex.Message}");
                 return Results.Problem("Error interno al agregar el producto", statusCode: 500);
-
             }
         });
     }
 }
 
-class Program
-{
-    static void Main(string[] args)
-    {
-        var constructor = WebApplication.CreateBuilder(args);
-        var app = constructor.Build();
+var builder = WebApplication.CreateBuilder(args);
 
-        app.MapGet("/Ping", () => "Pong");
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-        RutasInventario.ConfigurarInventario(app);
+var app = builder.Build();
 
-        app.Run();
-    }
-}
+
+
+app.MapGet("/", () => "Bienvenido al inventario");
+
+// Configuración de otras rutas
+RutasInventario.ConfigurarInventario(app);
+
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.Run();
