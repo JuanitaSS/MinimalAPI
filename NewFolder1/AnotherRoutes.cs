@@ -2,14 +2,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using MinimalAPI.Modelos;
+using Microsoft.AspNetCore.Mvc;
+using MinimalAPI.Models;
 
 namespace MinimalAPI.Routes
 {
-    public static class OtrasRutas
+    public static class AnotherRoutes
     {
-        public static void Otra(WebApplication app)
+        public static void Another(WebApplication app)
         {
+            List<Product> inventory = new List<Product>();
+
             app.MapGet("/Ping", () => "Pong");
 
             app.MapPost("/CustomJSON", (dynamic json) =>
@@ -21,22 +24,31 @@ namespace MinimalAPI.Routes
                 return Results.Ok($"Value1: {value1}");
             });
 
-            List<Producto> inventario = new List<Producto>();
+            app.MapGet("/GetInventory", () => Results.Json(inventory));
 
-            app.MapGet("/ObtenerInventario", () => Results.Json(inventario));
-            //recuerde descargar de forma local algun postman, creeria yo que cualquiera le sirve 
-            app.MapPost("/AgregarProducto", async (HttpContext context) =>
+            app.MapPost("/AddProduct", async (HttpContext context) =>
             {
-                var productoJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
-                var nuevoProducto = JsonSerializer.Deserialize<Producto>(productoJson);
+                var productJson = await new StreamReader(context.Request.Body).ReadToEndAsync();
+                var newProduct = JsonSerializer.Deserialize<Product>(productJson);
 
-                nuevoProducto.Id = Guid.NewGuid();
-                inventario.Add(nuevoProducto);
+                var validationResults = Validations.ValidarProduct(newProduct);
 
-                app.Logger.LogInformation($"Producto añadido - ID: {nuevoProducto.Id}, Nombre: {nuevoProducto.Nombre}, Cantidad: {nuevoProducto.Cantidad}");
+                if (validationResults.Count > 0)
+                {
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync(JsonSerializer.Serialize(validationResults));
+                    return;
+                }
 
-                return Results.Created($"/ObtenerProducto/{nuevoProducto.Id}", nuevoProducto);
+                newProduct.Id = Guid.NewGuid().ToString();
+                inventory.Add(newProduct);
+
+                app.Logger.LogInformation($"Product added - ID: {newProduct.Id}, Name: {newProduct.Name}, Quantity: {newProduct.Quantity}");
+
+                context.Response.StatusCode = 201;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(newProduct));
             });
         }
     }
 }
+
