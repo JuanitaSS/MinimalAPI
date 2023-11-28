@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace MinimalAPI.Models
+namespace MinimalAPI.Modelos
 {
     public class Producto
     {
