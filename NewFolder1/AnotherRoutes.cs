@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using MinimalAPI.Modelos;
 
 namespace MinimalAPI.Routes
 {
@@ -39,5 +40,4 @@ namespace MinimalAPI.Routes
         }
     }
 }
-
 
